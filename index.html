@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bombermunkey</title>
+    <style>
+        body{
+            background-color: black;
+        }
+        *{color:white;}
+        canvas{border:1px solid red;}
+    </style>
+</head>
+<body>
+    <canvas id="game" width="256" height="224"></canvas>
+    <script>
+        let ws = new WebSocket("ws://"+location.host+"/");
+        ws.onopen = ()=>{
+            ws.send("open:none");
+        }
+        ws.onmessage=(e)=>{
+            console.log("got "+e.data);
+            if(e.data.indexOf(":")!=-1){
+                let message = e.data.split(":");
+                if(message[0] == "assign"){
+                    nc.uuid = message[1];
+                    nc.mode = message[2];
+                    console.log("updated NC, ",nc);
+                    game = message[3].replace(/\%/g, ":");
+                    render();
+                }
+                if(message[0] == "key"){
+                    keypress(message[1]);
+                }
+            }
+        }
+        let nc = {
+            uuid: undefined,
+            mode: undefined
+        }
+        let tips = ["this is wild", "h3llo world", "say what?!??!", "bingle bingle", "zzzzzzzzz", "hello from here"];
+        tips = tips[Math.floor(Math.random() * tips.length)];
+        let game = "menu";
+        let canvas = document.getElementById("game");
+        let ctx = canvas.getContext("2d");
+        function render(){
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(game == "menu"){
+                ctx.textAlign = "left";
+                ctx.fillStyle = "white";
+                ctx.font = "20px Arial"
+                ctx.fillText("bombermünkey", 50,50);
+                ctx.font = "15px Arial";
+                ctx.fillText(tips, 100,70);
+                if(nc.uuid==undefined){
+                    ctx.fillText("> c <", 20, 90);
+                } else {
+                    if(nc.mode == "yes"){
+                        ctx.fillText("c: host", 20, 90);
+                    } else {
+                        ctx.fillText("c: client", 20, 90);
+                    }
+                }
+                ctx.textAlign = "center";
+                ctx.fillText("enter to start", 256/2, 200);
+            } else if (game.split(":")[0] == "submenu"){
+                ctx.textAlign = "center";
+                let state = game.split(":");
+                if(state[1] == "top"){
+                    ctx.font = "15px Arial";
+                    ctx.fillStyle = "white";
+                    ctx.fillText("player 1: ", (256/2)-20, 50);
+                    ctx.fillText("player 2: ", (256/2)-20, 50+(15*1));
+                    ctx.fillText("player 3: ", (256/2)-20, 50+(15*2));
+                    ctx.fillText("player 4: ", (256/2)-20, 50+(15*3));
+                    for(let i=0;i<4;i++){
+                        if(state[3+i] == "on"){
+                            ctx.fillStyle = "orange";
+                            ctx.fillText(state[3], (256/2)+30, 50+(15*i));
+                        } else {
+                            ctx.fillStyle = "blue";
+                            ctx.fillText(state[3], (256/2)+30, 50+(15*i));
+                        }
+                    }
+                    ctx.fillStyle = "lightgreen";
+                    ctx.fillText(">", 60, 50+(parseInt(state[2])*15));
+                } else if(state[1] == "bottom"){
+                    ctx.fillStyle = "white";
+                    ctx.fillText("win match", 256/2, 50);
+                    ctx.fillText("map", 256/2, 65);
+                    ctx.fillStyle = "orange";
+                    ctx.fillText("usp", (256/2)+30, 50);
+                    ctx.fillText(state[8], (256/2)+30, 65);
+                    ctx.fillStyle = "lightgreen";
+                    ctx.fillText(">", 60, 50+(parseInt(state[2]-4)*15));
+                } else {
+                    ctx.fillText("menustate sync fail", 256/2, 111);
+                }
+            }
+        }
+        render();
+        document.body.addEventListener("keydown", (e) => {
+            if(e.key == "Enter"){
+                keypress("enter");
+                ws.send("key:enter");
+            } else if(e.key == "ArrowDown"){
+                keypress("down");
+                ws.send("key:down");
+            } else if(e.key == "ArrowUp"){
+                keypress("up");
+                ws.send("key:up");
+            } else if(e.key == "ArrowLeft"){
+                keypress("left");
+                ws.send("key:left");
+            } else if(e.key == "ArrowRight"){
+                keypress("right");
+                ws.send("key:right");
+            }
+        });
+        function keypress(k){
+            if(k == "enter"){
+                if(game == "menu"){
+                    game="submenu:top:0:on:on:off:off:3:1";
+                    render();
+                }
+            }
+            if(k == "down"){
+                if(game.split(":")[0] == "submenu"){
+                    let state = game.split(":");
+                    if(state[2]==3){
+                        state[1] = "bottom";
+                        state[2] = parseInt(state[2])+1;
+                        game=state.join(":");
+                        render();
+                        return;
+                    }
+                    state[2] = parseInt(state[2])+1;
+                    game=state.join(":");
+                    render();
+                }
+            }
+            if(k == "up"){
+                if(game.split(":")[0] == "submenu"){
+                    let state = game.split(":");
+                    if(state[2]==0)return;
+                    if(state[2]==4){
+                        state[1] = "top";
+                        state[2] = parseInt(state[2])-1;
+                        game=state.join(":");
+                        render();
+                        return;
+                    }
+                    state[2] = parseInt(state[2])-1;
+                    game=state.join(":");
+                    render();
+                }
+            }
+            if(k == "left"){
+                if(game.split(":")[0] == "submenu"){
+                    let state = game.split(":");
+                    if(state[2]==5){
+                        if(state[parseInt(state[2])+3] == 1){
+                            state[parseInt(state[2])+3] = 5;
+                            game=state.join(":");
+                            render();
+                            return;
+                        }
+                        state[parseInt(state[2])+3] = parseInt(state[parseInt(state[2])+3])-1;
+                        game=state.join(":");
+                        render();
+                        return;
+                    }
+                    if(state[parseInt(state[2])+3] == "on"){
+                        state[parseInt(state[2])+3] = "off";
+                    } else {
+                        state[parseInt(state[2])+3] = "on";
+                    }
+                    game=state.join(":");
+                    render();
+                }
+            }
+            if(k == "right"){
+                if(game.split(":")[0] == "submenu"){
+                    let state = game.split(":");
+                    if(state[2]==5){
+                        if(state[parseInt(state[2])+3] == 5){
+                            state[parseInt(state[2])+3] = 1;
+                            game=state.join(":");
+                            render();
+                            return;
+                        }
+                        state[parseInt(state[2])+3] = parseInt(state[parseInt(state[2])+3])+1;
+                        game=state.join(":");
+                        render();
+                        return;
+                    }
+                    if(state[parseInt(state[2])+3] == "on"){
+                        state[parseInt(state[2])+3] = "off";
+                    } else {
+                        state[parseInt(state[2])+3] = "on";
+                    }
+                    game=state.join(":");
+                    render();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
