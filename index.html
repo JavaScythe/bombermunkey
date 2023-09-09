@@ -48,9 +48,9 @@
                     let enc = message[1].replace(/\%/g, ":");
                     for(let b=0;b<12;b+=3){
                         pmap["p"+(b/3)] = {
-                            x: enc.split(":")[b],
-                            y: enc.split(":")[b+1],
-                            b: enc.split(":")[b+2]
+                            x: parseInt(enc.split(":")[b]),
+                            y: parseInt(enc.split(":")[b+1]),
+                            b: parseInt(enc.split(":")[b+2])
                         }
                     };
                     render();
@@ -189,6 +189,13 @@
                     state[2] = parseInt(state[2])+1;
                     game=state.join(":");
                     render();
+                } else if(game == "play"){
+                    console.log(p);
+                    if(map[pmap[p].x][pmap[p].y+1] != 0){
+                        return;
+                    }
+                    pmap[p].y += 1;
+                    render();
                 }
             }
             if(k == "up"){
@@ -204,6 +211,13 @@
                     }
                     state[2] = parseInt(state[2])-1;
                     game=state.join(":");
+                    render();
+                } else if(game == "play"){
+                    console.log(p);
+                    if(map[pmap[p].x][pmap[p].y-1] == "1"){
+                        return;
+                    }
+                    pmap[p].y -= 1;
                     render();
                 }
             }
@@ -231,6 +245,9 @@
                     render();
                 } else if(game == "play"){
                     console.log(p);
+                    if(map[pmap[p].x-1]==undefined||map[pmap[p].x-1][pmap[p].y] == "1"){
+                        return;
+                    }
                     pmap[p].x -= 1;
                     render();
                 }
@@ -256,6 +273,13 @@
                         state[parseInt(state[2])+3] = "on";
                     }
                     game=state.join(":");
+                    render();
+                } else if(game == "play"){
+                    console.log(p);
+                    if(map[pmap[p].x+1]==undefined||map[pmap[p].x+1][pmap[p].y] != 0){
+                        return;
+                    }
+                    pmap[p].x += 1;
                     render();
                 }
             }

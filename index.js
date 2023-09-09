@@ -3,6 +3,12 @@ let game = "menu";
 let submenu = "";
 let map = [];
 let pmap = {};
+let slots = [
+    "p0",
+    "p1",
+    "p2",
+    "p3"
+];
 const server = Bun.serve({
     fetch(req, server) {
         const success = server.upgrade(req);
@@ -41,13 +47,7 @@ const server = Bun.serve({
                         enc.pop();
                         enc=enc.join("");
                         ws.send("entity:"+enc.replace(/\:/g, "%"));
-                        if(clients.length-1<4){
-                            ws.send("who:p"+(clients.length-1));
-                            ws.person = "p"+(clients.length-1);
-                        } else {
-                            ws.send("who:spec");
-                            ws.person = "spec";
-                        }
+                        ws.send("who:"+allocate());
                     }
                 } else if(message[0] == "key"){
                     if(message[1]=="enter"&&game=="menu"){
@@ -62,20 +62,16 @@ const server = Bun.serve({
                         enc = "0:0:1:12:0:1:12:10:1:0:10:1";
                         for(let b=0;b<12;b+=3){
                             pmap["p"+(b/3)] = {
-                                x: enc.split(":")[b],
-                                y: enc.split(":")[b+1],
-                                b: enc.split(":")[b+2]
+                                x: parseInt(enc.split(":")[b]),
+                                y: parseInt(enc.split(":")[b+1]),
+                                b: parseInt(enc.split(":")[b+2])
                             }
                         };
                         for(let k in clients){
                             clients[k].ws.send("entity:"+enc.replace(/\:/g, "%"));
-                            if(k<4){
-                                clients[k].ws.send("who:p"+k);
-                                clients[k].ws.person = "p"+k;
-                            } else {
-                                clients[k].ws.send("who:spec");
-                                clients[k].ws.person = "spec";
-                            }
+                            let p = allocate();
+                            clients[k].ws.send("who:"+p);
+                            clients[k].ws.person = p;
                         }
                     }
                     if(game.split(":")[0]=="submenu" && message[1]=="down"){
@@ -137,10 +133,35 @@ const server = Bun.serve({
                             game=state.join(":");
                         }
                     }
-                    if(game=="play" && message[1] == "left"){
-                        if(ws.person!="spec"&&ws.person!=undefined&&ws.person[0]=="p"){
-                            console.log(ws.person);
-                            pmap[ws.person].x -= 1;
+                    if(game=="play"){
+                        if(message[1] == "left"){
+                            if(ws.person!="spec"&&ws.person!=undefined&&ws.person[0]=="p"){
+                                pmap[ws.person].x -= 1;
+                                if(map[pmap[ws.person].x][pmap[ws.person].y] == "1"){
+                                    pmap[ws.person].x += 1;
+                                }
+                            }
+                        } else if(message[1] == "right"){
+                            if(ws.person!="spec"&&ws.person!=undefined&&ws.person[0]=="p"){
+                                pmap[ws.person].x += 1;
+                                if(map[pmap[ws.person].x][pmap[ws.person].y] == "1"){
+                                    pmap[ws.person].x -= 1;
+                                }
+                            }
+                        } else if(message[1] == "up"){
+                            if(ws.person!="spec"&&ws.person!=undefined&&ws.person[0]=="p"){
+                                pmap[ws.person].y -= 1;
+                                if(map[pmap[ws.person].x][pmap[ws.person].y] == "1"){
+                                    pmap[ws.person].y += 1;
+                                }
+                            }
+                        } else if(message[1] == "down"){
+                            if(ws.person!="spec"&&ws.person!=undefined&&ws.person[0]=="p"){
+                                pmap[ws.person].y += 1;
+                                if(map[pmap[ws.person].x][pmap[ws.person].y] == "1"){
+                                    pmap[ws.person].y -= 1;
+                                }
+                            }
                         }
                     }
                     clients.forEach(c => {
@@ -157,7 +178,17 @@ const server = Bun.serve({
             console.log(`Received ${message}`);
         },
         close(ws) {
-            for(let i in clients){if(clients[i].uuid == ws.uuid){clients.splice(i,1);break;}};
+            for(let i in clients){
+                if(clients[i].uuid == ws.uuid){
+                    slots.push(ws.person);
+                    clients.splice(i,1);
+                    break;
+                }
+            };
+            slots.sort(function(a,b){
+                a.localeCompare(b, 'en', { numeric: true });
+            });
+            console.log("restored slots to ",slots);
             if(clients.length == 0)game="menu";
         }
     },
@@ -190,5 +221,12 @@ function generateMap(t){
         }
     }
     return enc;
+}
+function allocate(){
+    if(slots.length==0){
+        return "spec";
+    } else {
+        return slots.shift();
+    }
 }
 console.log(`Listening on localhost:${server.port}`);
