@@ -31,14 +31,42 @@
                     render();
                 }
                 if(message[0] == "key"){
-                    keypress(message[1]);
+                    keypress(message[1],message[2]);
+                }
+                if(message[0] == "map"){
+                    for(let i=0;i<13;i++){
+                        map.push([]);
+                        for(let k=0;k<11;k++){
+                            map[map.length-1].push(message[1][(parseInt(i)*11)+k]);
+                        }
+                    }
+                    
+                    console.log(map);
+                    render();
+                }
+                if(message[0] == "entity"){
+                    let enc = message[1].replace(/\%/g, ":");
+                    for(let b=0;b<12;b+=3){
+                        pmap["p"+(b/3)] = {
+                            x: enc.split(":")[b],
+                            y: enc.split(":")[b+1],
+                            b: enc.split(":")[b+2]
+                        }
+                    };
+                    render();
+                }
+                if(message[0] == "who"){
+                    who = message[1];
                 }
             }
         }
         let nc = {
             uuid: undefined,
             mode: undefined
-        }
+        };
+        let map = [];
+        let who = undefined;
+        let pmap = {};
         let tips = ["this is wild", "h3llo world", "say what?!??!", "bingle bingle", "zzzzzzzzz", "hello from here"];
         tips = tips[Math.floor(Math.random() * tips.length)];
         let game = "menu";
@@ -87,41 +115,61 @@
                     ctx.fillText(">", 60, 50+(parseInt(state[2])*15));
                 } else if(state[1] == "bottom"){
                     ctx.fillStyle = "white";
-                    ctx.fillText("win match", 256/2, 50);
-                    ctx.fillText("map", 256/2, 65);
+                    ctx.fillText("win match", (256/2)-50, 50);
+                    ctx.fillText("map", (256/2)-50, 65);
                     ctx.fillStyle = "orange";
                     ctx.fillText("usp", (256/2)+30, 50);
                     ctx.fillText(state[8], (256/2)+30, 65);
                     ctx.fillStyle = "lightgreen";
-                    ctx.fillText(">", 60, 50+(parseInt(state[2]-4)*15));
+                    ctx.fillText(">", 50, 50+(parseInt(state[2]-4)*15));
                 } else {
                     ctx.fillText("menustate sync fail", 256/2, 111);
+                }
+            } else if(game == "play"){
+                for(let x in map){
+                    for(let y in map[x]){
+                        if(map[x][y] == "0"){
+                            ctx.fillStyle = "red";
+                        } else {
+                            ctx.fillStyle = "blue";
+                        }
+                        let bs = 18;
+                        ctx.fillRect(10+(x*bs),12+(y*bs),bs,bs);
+                    }
+                }
+                for(let p in pmap){
+                    let bs = 10;
+                    ctx.fillStyle = "yellow";
+                    ctx.fillRect(14+(pmap[p].x*18),16+(pmap[p].y*18),bs,bs);
                 }
             }
         }
         render();
         document.body.addEventListener("keydown", (e) => {
             if(e.key == "Enter"){
-                keypress("enter");
+                keypress("enter",who);
                 ws.send("key:enter");
             } else if(e.key == "ArrowDown"){
-                keypress("down");
+                keypress("down",who);
                 ws.send("key:down");
             } else if(e.key == "ArrowUp"){
-                keypress("up");
+                keypress("up",who);
                 ws.send("key:up");
             } else if(e.key == "ArrowLeft"){
-                keypress("left");
+                keypress("left",who);
                 ws.send("key:left");
             } else if(e.key == "ArrowRight"){
-                keypress("right");
+                keypress("right",who);
                 ws.send("key:right");
             }
         });
-        function keypress(k){
+        function keypress(k,p){
             if(k == "enter"){
                 if(game == "menu"){
                     game="submenu:top:0:on:on:off:off:3:1";
+                    render();
+                } else if(game.split(":")[0] == "submenu"){
+                    game="play";
                     render();
                 }
             }
@@ -133,6 +181,9 @@
                         state[2] = parseInt(state[2])+1;
                         game=state.join(":");
                         render();
+                        return;
+                    }
+                    if(state[2]==5){
                         return;
                     }
                     state[2] = parseInt(state[2])+1;
@@ -177,6 +228,10 @@
                         state[parseInt(state[2])+3] = "on";
                     }
                     game=state.join(":");
+                    render();
+                } else if(game == "play"){
+                    console.log(p);
+                    pmap[p].x -= 1;
                     render();
                 }
             }
